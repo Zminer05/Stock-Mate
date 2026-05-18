@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.tracked_stock import TrackedStock
 from app.schemas.stock import StockCreate
+from app.services.finnhub_service import get_stock_quote
 
 router = APIRouter(prefix="/stocks", tags=["Stocks"])
 
@@ -64,4 +65,33 @@ def get_my_stocks(
         TrackedStock.user_id == user_id
     ).all()
 
-    return stocks
+    stock_data = []
+
+    for stock in stocks:
+        live_data = get_stock_quote(stock.ticker)
+
+        stock_data.append({
+            "id": stock.id,
+            "ticker": stock.ticker,
+            "company_name": stock.company_name,
+            "current_price": live_data.get("c"),
+            "high": live_data.get("h"),
+            "low": live_data.get("l"),
+            "open": live_data.get("o"),
+            "previous_close": live_data.get("pc")
+        })
+
+    return stock_data
+
+@router.get("/quote/{ticker}")
+def stock_quote(ticker: str):
+    data = get_stock_quote(ticker)
+
+    return {
+        "ticker": ticker.upper(),
+        "current_price": data.get("c"),
+        "high": data.get("h"),
+        "low": data.get("l"),
+        "open": data.get("o"),
+        "previous_close": data.get("pc")
+    }
